@@ -93,7 +93,13 @@ Has three parts
 * Create 2 Route Table one is public and the other is private. 
     * Add IGW to Route Table Public
     * Add Subnets as required
-* Create EC2 instance for Private Subnets
+* Create EC2 instance for Private Subnets. Add below script for weblogic server. the `-y` is to answer all questions as Yes.
+```shell
+#!/bin/bash
+yum update -y
+yum install -y httpd
+service httpd start
+```
 * Explain why we can't log in
 * Create a Bastion Host, same EC2 but in Public Subnet
 * Once Bastion Host is created, SSH into it and from there SSH into the Ec2 instances in the Private Subnet.
@@ -199,7 +205,76 @@ Normally if you use a storage service you get charged by storage size. But S3 ch
     * CORS-Cross Online Resource Sharing
 * Website down, backup
 
+# Route 53
+
+* It is a DNS Hosting Service. It has
+    * Domain Registration: Getting a url
+    * Domain Name Registration(DNS) Service: url to ip adress, this is done by using Name servers (NS)
+    * Health Checking
+
+## Hosted Zones
+
+* Contains DNS rules(record sets) as in what to do with the web traffic coming in. 
+* It also contains Name Servers
+
+## Record Sets
+
+* Instructions matching Domain Name to IP
+    * A: IPv4
+    * AAAA: IPv6
+    * CNAME: point a name to another name
+    * MX: route email (mail server)
+* Alias Record set
+    * Points to specific AWS service eg: ELB, EBS, S3 etc
+    * This is type A
+    * This is because directing it direct IP, IP may change for AWS services
+* Routing Policy
+    * Simple: Routing all traffic to one end point
+    * Weighted: Manual Load Balancing
+    * Latency: Route based on users latency to various end points
+    * Failover: Route traffic to secondary if primary is not available
+    * Geolocation: Route based on location
+
+# Steps to Host
+
+* Buy a Domain Name from a Domain Registrar like GoDaddy or from AWS or from free services
+* Create a Hosted Zone with the Domain you got. This will create Name Servers, put these Name Servers in the Domain Name Name Servers at the Registrar's website
+* Create a record set pointing to the AWS service you want to use.
+
+# Steps in Traffic routing: Simple Version
+
+* From your browser you type google.com
+* Request first checks browser cache if not it  goes to your ISP (eg Cox) DNS Resolver 
+* if not there it goes to Root Name Server
+* if not root name server tells it to check .com Top Level Domain (TLD) server
+* if not .com server tells the name of name server to check
+* here it interacts with route 53 which has the name servers, and the name servers gives the ip address for google.com
+* based on the alias set this is the aws service which then routes the traffic to the necessary server and send the information you requested on google.com page
+
+# Cloud Front
+
+* It is similar to Route 53.
+    * You have a static web page being hosted from S3
+    * You can directly use the url to share the website given by s3, without using Route 53 or Cloud Front. The problem is the url is unreadable so you want easy to read url. To address this problem, you use route 53. The problem is you are hitting your s3 again and again and s3 is located at one place and users are all over the world, to address this problem you use cloudfront distribution.
+    * In Cloud Front you tell the origin which is the S3 bucket and it will give you a domain name, which you can use to access S3. Or you can configure the Cloud Front to use an alternate DOmain Name(CNAME). Then in Route 53 create a new record set, and set an alias pointing to the Cloud Front. 
+    * Now you can use a custom domain name as you want, and also server traffice with low latency thanks to cloud front. 
+* It is a global CDN (Content Delivery network). It basically is a proxy server(s) which cahes traffic from the original server and then traffic is routed to this proxy server instead of original server, hence reucing load.
+* The original server which is ELB or S3 is called Origin and proxy server is called Edge Location
+* Route 53 is used where a Record set with CNAME is created routing traffic for the domain to another domain which can be like routing meditations22.com to cdn.meditations22.com
+* 
+
 # TODO
 
-Route 53
-VPC Peering
+# Revise
+
+# VPC Peering
+
+# Database
+
+# SNS--Simple Notification Service
+
+# Monitoring
+
+# Deployment -- Cloud Formation
+
+# Container
