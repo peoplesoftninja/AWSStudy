@@ -365,12 +365,7 @@ When you create a Primary DB, you can create a Read Replica, which is asynchrono
 
 # TODO
 
-<<<<<<< HEAD
 testing
-=======
-
-
->>>>>>> b14160912791c876947c9394ae2468b6cf4e2947
 
 # Monitoring
 
