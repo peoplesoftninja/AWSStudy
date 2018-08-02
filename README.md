@@ -365,9 +365,6 @@ When you create a Primary DB, you can create a Read Replica, which is asynchrono
 
 # TODO
 
-
-
-
 # Monitoring
 
 # Deployment -- Cloud Formation
