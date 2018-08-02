@@ -235,6 +235,12 @@ Normally if you use a storage service you get charged by storage size. But S3 ch
     * Failover: Route traffic to secondary if primary is not available
     * Geolocation: Route based on location
 
+## DNS Failover
+
+* Keep the ELB/S3, the primary source as primary. In the failover
+* Health check should be enabled at primary for this feature to work
+* For the S3 or the secondary, set as failover and keep secondary. 
+
 # Steps to Host
 
 * Buy a Domain Name from a Domain Registrar like GoDaddy or from AWS or from free services
@@ -253,25 +259,114 @@ Normally if you use a storage service you get charged by storage size. But S3 ch
 
 # Cloud Front
 
-* It is similar to Route 53.
-    * You have a static web page being hosted from S3
-    * You can directly use the url to share the website given by s3, without using Route 53 or Cloud Front. The problem is the url is unreadable so you want easy to read url. To address this problem, you use route 53. The problem is you are hitting your s3 again and again and s3 is located at one place and users are all over the world, to address this problem you use cloudfront distribution.
-    * In Cloud Front you tell the origin which is the S3 bucket and it will give you a domain name, which you can use to access S3. Or you can configure the Cloud Front to use an alternate DOmain Name(CNAME). Then in Route 53 create a new record set, and set an alias pointing to the Cloud Front. 
-    * Now you can use a custom domain name as you want, and also server traffice with low latency thanks to cloud front. 
-* It is a global CDN (Content Delivery network). It basically is a proxy server(s) which cahes traffic from the original server and then traffic is routed to this proxy server instead of original server, hence reucing load.
+
+* You have a static web page being hosted from S3
+* You can directly use the url to share the website given by s3, without using Route 53 or Cloud Front. The problem is the url is unreadable so you want easy to read url. To address this problem, you use route 53. The problem is you are hitting your s3 again and again and s3 is located at one place and users are all over the world, to address this problem you use cloudfront distribution.
+* You can combine the above two. In Cloud Front you tell the origin which is the S3 bucket and it will give you a domain name, which you can use to access S3. Or you can configure the Cloud Front to use an alternate DOmain Name(CNAME). Then in Route 53 create a new record set, and set an alias pointing to the Cloud Front. This way you can use the domain name you want.
+* Now you can use a custom domain name as you want, and also server traffice with low latency thanks to cloud front. 
+* Data transfer from S3 to cloudFront is free
+* It is a global CDN (Content Delivery network). It basically is a proxy server(s) which caches traffic from the original server and then traffic is routed to this proxy server instead of original server, hence reducing load.
 * The original server which is ELB or S3 is called Origin and proxy server is called Edge Location
 * Route 53 is used where a Record set with CNAME is created routing traffic for the domain to another domain which can be like routing meditations22.com to cdn.meditations22.com
-* 
+* Even if TTL for an object is 0, it's faster in Cloud Front as it replaces only if there is a change in header version, so if it's not it doesn't replace and serves the same object
+* You can restrict the access to Origin S3 in Cloud Front so that users don't have direct access to it.
 
-# TODO
-
-# Revise
 
 # VPC Peering
 
+* To ping server we need to have All ICMP- IPv4 type protocol ICMP(1) open. To ping it from anywhere use `0.0.0.0/0` and to ping from paritcular VPC use the ip pf that, if more than one vpc, use a top level ip block. For example, `10.0.0.0/13` covers from `10.1.0.0` to `10.7.255.255`
+* Create a VPC peering connection by giving a requestor VPC and acceptor VPC
+* After creating a peering connection, go to the acceptor VPC account, and click accept. Till then it will be pending
+* After creating just VPC peering we still won't be able to ping.We need one more step, add traffic routing to route table. 
+* Route needs to be added on both sides of the relationship. You give the other VPC IP as Destination and Peering connection ID as Target. 
+* Once VPC is established you can only ping personal IP, not public IP, as for public IP you need to go outsider internet and we removed the open internal ping rule from NACL by limiting to only VPC
+    * To work around this, go to vpc peering connection
+    * Actions-->Edit DNS settings
+    * DNS Resolutions allow for both VPC
+    * This will work only for public DNS not Public IP 
+* We can connect private subnets as well, until and unless the route table has peering connection route
+* Three steps for VPC peering
+    * NACL, ICMP 1 open for VPC IP
+    * VPC peering connection established, accepted and working
+    * Route table VPCE source and Peering ID as destination in each subnet
+    * In Peering go to Action and Edit DNS Setting, enable.
+
 # Database
 
+RDS is fully managed.
+
+When you create a Primary DB, you can create a Read Replica, which is asynchronous copy of primary DB
+
+## Neptune
+* Full managed NoSQL Graph DB, different from DynamoDb as DynamoDb is Document Store/Key-value store. Neptune is similar to Neo4j and DynamoDB is similar to MongoDB
+* Open Source API
+    * TinkerPop Gremlin - Uses Gremlin Console Client
+    * RDF SPARQL - Uses RDF4j Console
+* Highly Available
+* Storage up to 64 TB, up to 15 Read Replicas
+* Server Side Encryption
+
 # SNS--Simple Notification Service
+
+* There are many services for which we want to receive alert. Like S3 upload, delete etc. We can't set up alerts from the service directly. For this we have SNS.
+* When we set alert we need to give where the alert should go, mostly it is email it could also be other things. You can't just go to SNS and set an email as you need a place to define who is sending the alert and a place to group all the emails. So you basically crate such group to contain all rules, this is called SNS Topic
+* Instead of policy you can create a role to use the sns service and attach that role to the s3 or lambda function. This way you don't have to give any policy rule at SNS level
+* Once we create SNS topic, we will put in all the emails which are called subscribers, there can be other subscribers too like Lambda function, SQS and text
+* That is not enough, as we need to tell the group who will be sedning notification for this we need to go and edit the policy and add the required bucket name or whatever service. 
+* In the service, that is S3 we will have to setup the events to go to the SNs topic created. 
+* If email, we will have to confirm the email. That is it. 
+* SNS Work Flow
+    * Publisher - Sender. Eg: Human, S3 event, Cloud Watch Alarm
+    * Topic - Group which contain subscribers, IAM rules etc. 
+    * Subscriber - Receiver : Eg SMS, Email, Lambda, SQS
+  
+# SQS - Simple Queue Service
+
+* This is used to create a decoupled architecture
+* Messages between servers are retrieved through polling
+    * Long Polling--1-20 seconds, Less API calls so cheaper
+    * Short Polling--More calls, so costlier
+* Mangaed by AWS, Highly Available
+* Msg can contain 256 KB, text format
+* Standard Queue and FIFO Queue
+
+# SWF - Simple Work Flow
+
+* Used to create distributed application
+* Workflow - Sequence of steps required to perform a task
+* Worker - Responsible for performing a task
+* Task: What work needs to be done
+* Activites: A single step in the workflow
+
+# API Gateways
+
+* Allows you to create and manage your own API for your application
+* RESTful API with Resources, Methods and Settings
+* Different stages, DEV, TST and PRD
+* Roll back to previous deployment, versioning done
+* Custom Domain anmes
+* Monitor using CloudWatch for Keys, erros, caching and latency
+* API caching is done, so that API response to a duplicate API doesn't hit back end
+* Can be used with cloud Front to reduce latency and improve security
+
+
+# Lambda Function
+
+* You can create a Lambda Function using many platforms Python, NodeJS, Go
+
+# Lambda - Excercise
+
+* Set up Lambda with CloudWatch and SNS
+* Create a Lambda Python program to access sns topic and send a message
+* Create a Cloud Watch rule to schedule sending message for x days or x minutes
+* in SNS topic, create a topic, add subscribers, use the TopicArn in the Lamda python code
+* Create a Lambda function with the code and add a IAM role with permission for SNS and Cloud WAtch. This way you don't have to create any policy at SNS and cloudWatch level
+* Start the Lambda and we will have a serverless function which is sending messages at a given frequency to a list of subscribers. 
+
+# TODO
+
+
+
 
 # Monitoring
 
