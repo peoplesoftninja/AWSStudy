@@ -344,7 +344,7 @@ When you create a Primary DB, you can create a Read Replica, which is asynchrono
 * RESTful API with Resources, Methods and Settings
 * Different stages, DEV, TST and PRD
 * Roll back to previous deployment, versioning done
-* Custom Domain anmes
+* Custom Domain names
 * Monitor using CloudWatch for Keys, erros, caching and latency
 * API caching is done, so that API response to a duplicate API doesn't hit back end
 * Can be used with cloud Front to reduce latency and improve security
@@ -356,19 +356,89 @@ When you create a Primary DB, you can create a Read Replica, which is asynchrono
 
 # Lambda - Excercise
 
-* Set up Lambda with CloudWatch and SNS
+* Set up Lambda with CloudWatch and SNS IAM roles
 * Create a Lambda Python program to access sns topic and send a message
 * Create a Cloud Watch rule to schedule sending message for x days or x minutes
 * in SNS topic, create a topic, add subscribers, use the TopicArn in the Lamda python code
 * Create a Lambda function with the code and add a IAM role with permission for SNS and Cloud WAtch. This way you don't have to create any policy at SNS and cloudWatch level
 * Start the Lambda and we will have a serverless function which is sending messages at a given frequency to a list of subscribers. 
 
-# TODO
+# Deployment -- Cloud Formation
 
-testing
+* Infrastructure as code
+* Create a simple template, to define the infrastructe and Cloud Formation will create the resources for you, called stack
+* Templates create a stack, we use a single template to create multiple stack. 
+* Template is in JSON or YAML format
+* Versioning support. You can roll back to previous version if current fails
+* Good for DR, as we don't need a backup copy running all the time, we just need a cloud formation template from which we can create a stack and it will be up in no time. 
+* Supports Nested Stacks
+    * Different template for Ec2, IAM, DB and have templates calling other templates.   
+    * Hence having micro-templates instead of a single monolith one.
+  
+## Template
+
+* Resources 
+    * Services to deploy VPC, EC2, IGW etc
+    * User Data Scripts
+    * Custom Resources
+* Parameters
+    * Variables in templates
+    * User prompted for values at run time
+    * Key pairs, instance types, DB password etc
+* Mapping  
+    * Sometimes we need names, like AMI name or subnet name. To avoid going back and checking we create Look up tables, which is stored in the template itself from which we can copy the value and use 
+* Output
+    * Information to receive from stack. Like ELB DNS name
+* Conditions
+    * If Env = PRD then Auto Group = Yes
+
+* Do a Getting Started in Cloud Formation in AWS Excercise. To get a better understanding of the template. 
+
+* Delete Stack will delete all the resources created via Cloud formation
 
 # Monitoring
 
-# Deployment -- Cloud Formation
+## Cloud Watch
+
+* Monitoring all AWS services, EC2, S3, ELB
+* We configure Cloud Watch Metrics and based on that monitor the Env
+* Detailed vs Basic, based on plan chosen, cost varies
+* Can create alerts based on thresholds set using SNS or create actions to other AWS services
+* Cloud Watch is the basic pillar in Auto Scaling
+
+## Cloud Trail
+
+* API logging service, logs ALL API calls. 
+* All logs are placed in the destinated s3 bucket
+
+## VPC Flow Logs
+
+* Logs incoming IP traffic to VPC
+* Logs stored in CloudWatch
+* Can be created for specific subnet
+* To create flow log we need IAM role givnig access to CloudWatch to log the event
+* Flow log map
+  
+```  
+173.244... - Source IP
+10.0.2.32 - Destination IP
+623628 - Source Port
+22- Destination port
+6- protocol number
+28 - packets transfered
+4237 - bytes
+time at the start of capture
+time at the end of capture
+status accept or reject
+status of log
+```
+
+
+
+# TODO
+
+Redo Cloud Formatioin
+Monitoring  
+
 
 # Container
