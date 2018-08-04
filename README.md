@@ -392,8 +392,6 @@ When you create a Primary DB, you can create a Read Replica, which is asynchrono
 * Conditions
     * If Env = PRD then Auto Group = Yes
 
-* Do a Getting Started in Cloud Formation in AWS Excercise. To get a better understanding of the template. 
-
 * Delete Stack will delete all the resources created via Cloud formation
 
 # Monitoring
@@ -433,11 +431,50 @@ status accept or reject
 status of log
 ```
 
+## Lab
+
+* Create a S3 bucket
+* Create a Cloud Trail for that S3 bucket and store the logs in another bucket
+* Create a Cloud Watch for the Logs, by creating an IAM role with Access to write the logs assigned to CloudTrail. You don't have to go to IAM page for this
+* Create a Cloud Metric by Creating an Alarm. --read documentation on Cloud Alarm
+* Send Notification via SNS
+
+The Cloud Trail doesn't log at the same time, there is a lag, around 15-20 minutes
+ 
+# ECS - Elastic Container Service
+* Container Management Service like Docker. This is useful when you have many containers
+* Components
+    * Task Definition: Point in time capture of the configuration of running the image. where as Docker Image is the point in time capture of the running applicaiton
+        * Docker Images for each container
+        * CPU and memory requirments for each container
+        * Links between container
+        * Networking and Port setting
+        * Data Storage Volume
+        * Security IAM roles
+    * ECS Clusters
+        * Group of EC2 instances, each running ECS
+        * ECS Agent is one light EC2 instances giving direction to other EC2 instances
+    * ECR - Elastic Container Registry
+        * Store Manage and Deploy Container Images
+        * Fully Managed Docker Container Registry
+
+
+# EBS - Elastic Bean Stalk
+
+* Automated Deployment and Scaling Service
+    * Load Balancing, Auto Scaling, Monitoring, Platform Management and Code Deployment
+* Deployment Automation
+    * In-Place (Upload, and Deploy)
+        * Rolling update: Not updating each environment. Good for minor updates
+    * Blue-Green 
+        * Helps you run different version in different stages   
+* When creating a EBS application, make sure a VPC is present
+* 
 
 # TODO
 
-Redo Cloud Formatioin
-Monitoring  
+# Revise
+# Analytics
+# AWS Well Architected Framework
 
-
-# Container
+ECS Lab Work from AWS Documentation
