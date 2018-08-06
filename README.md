@@ -430,7 +430,17 @@ time at the end of capture
 status accept or reject
 status of log
 ```
+## AWS Config
 
+* Visibility into resources and configuration. Using AWS Config you can see what resources are running on your AWS account
+* Relation between resources: As in which resources use a particular SG
+* Historical timelines
+* Integration with CloudTrail
+* Notifications: When resources are created, modified or deleted
+* Config Rules:
+    * Evaluates Compliance: Internal rule that all S3 data must be encrypted
+    * Managed Rules, provided by AWS, which can be used
+    * We can also create a custom rule, by creating a Lambda function for that rule
 ## Lab
 
 * Create a S3 bucket
@@ -469,12 +479,304 @@ The Cloud Trail doesn't log at the same time, there is a lag, around 15-20 minut
     * Blue-Green 
         * Helps you run different version in different stages   
 * When creating a EBS application, make sure a VPC is present
-* 
 
-# TODO
-
-# Revise
 # Analytics
+
+## Kinesis
+
+* Real time processing of Data
+* Data generated from producers, goes to Kinesis, which generates multiple streams where consumers like DynamoDB, S3, Kinesis App consume the data, without data loss.
+* Kinesis Video Stream: Real time video processing
+* Kinesis Data Stream: 
+    * Streams: Contains 1 or more shards
+    * Shards: 
+        * This is processing power. 
+        * 1 MB/sec read, 2 MB/sec write. 
+        * Billed by number of shard hours
+    * Producers: Mobile, IoT devices, install agents on servers to send log file live
+    * Consumers
+* Kinesis Firehose: Load streaming data to S3, Splunk, RedShift, Elastic search
+* Kinesis Data Analytics: Run SQL agianst Data Stream of Firehose, send out to Data Stream or firehose
+
+## Elastic Map Reduce (EMR)
+
+* Solve the problem of data created in High variety, High volume and High velocity. This was done by creating frameworks(Hadoop, Spark) for distributing work to mulitiple servers.
+* EMR runs this framework(Hadoop) on EC2 instances
+* Data is first stored in S3 and from there the EMR takes it for processing and the output can be stored in S3 or somewhere else. While processing the dat is stored either in HDFS (Hadoop File Sytsem) or an AWS product which utilizes S3 is called (EMRFS)
+* Master Node: Controls Slave Node, This is the only Ec2 instance we have access to
+* Slave Node:
+    * Core Node: Processes and stores data. Mandatory to have at least one core node
+    * Task Node: Only Process
+* Map-Reduce: In Map, data is split to slave nodes. In Reduce, data is aggregated into a single file and output stored
+
 # AWS Well Architected Framework
+
+A well architect framework has following traits
+
+* Operations Excellence: Runs and monitors systems to provide business value and continually improve supporting processes and procedures
+* Reliability: Recover from failure and mitigate disruptions
+* Security: Protect and Monitor System
+* Performance Efficiency: Use computing resources efficiently
+* Cost Optimization: Avoid or eliminate unneeded cost
+
+## Operation: Best Practices and Key Services
+
+### Design Principles
+* Infrastructure/Operations as Code: Automate everything Eg: Auto Scaling
+* Annotate Documentation: Xode everything, which will serve as documentation
+* Frequent, small, reversible changes--Monitor test and quick feedback. This way it is less risky.
+* Refine Operation procedures continiously
+* Anticipate failure: Assume whatever can fail, will fail. In place operations to correct when component fails. Like in Auto scaling we have a monitor setup to replace failed instances with healthy one
+* Learn from all opearation failures: Why it took so much time to recover, why did we have data loss
+
+### Key services
+* Operations as a Code: Cloud-Formation
+* Log Collection and Monitoring: Cloud Watch, Cloud Trail, VPC Flow logs, AWS Config
+* Have procedures to follow when things break, and schedule game days to make the team practice fire drills.
+
+### AWS DevOps Tools
+
+* CodeBuild: Build and test the application code before releasing
+* CodeCommit: Managed git repo, similar to git. When code commited to CodeCommit it can trigger CodeBuild
+* CodeDeploy: Deploy code to Ec2 instances, can do rolling updates
+* CodePipeline: Can orchestrate all the above to give the CI/CD
+* CodeStar: Complete Project Management Solution, that includes things like Bug Tracking and CI
+* Xray: Optimize service oriented architecture
+
+
+## Reliability
+
+The ability to recover from failure and mitigate disruptions
+
+### Design Principles
+
+* Test recovery procedure: To see what happens when x goes down, and make sure we have acceptable level of recovery based on time and data lost. 
+* Automate recovery: Whenever possible, automate recovery.
+* Scale Horizontally: Most possible reason for failure is increase in traffic
+* Stop guessing capacity: Change mindset, automate peak load
+* Automate change: Follow DevOps Principles, like small changes, if problem roll back, stop manual changes use scripts like cloud formation templates
+
+### Key Services
+
+* Cloud Watch
+* Foundations: 
+    * IAM: limit only authorized people to make changes
+    * VPC: Different environments for DEV, TST and PRD
+    * Trusted advisor: Service limits of EC2 and EBS, so that you can pro-actively contact AWS and increase limits such that we are not stuck with system not able to auto scale because service limit is reached.  It can send weekly reports. Apart from this it also provides other services like
+        * Service Limits
+        * Cost Optimization (Idle resources, capacity reservations)
+        * Performance (High utilization)
+        * Security (IAM Permissions, SG)
+        * Fault Tolerance (EBS Snapshot, RDS backup, Multi A-Z)
+    * DDOS Protection : Sheild standard everyone gets. Advance WAF (Web application firewall) allowing to firewall at application layer
+* Change Management: 
+    * Cloud Watch: Control Access
+    * AWS Config: Configuration Awarness
+    * CloudTrail: Audit API calls
+    * AutoScaling: Demand Management
+* Failure Management:
+    * Cloud Fromation: Infrastructure is completely scripted
+    * S3: Durable backups, to mitigate against corruption or deletion of data
+    * KMS: Reliable key management service, to make sure we don't lose access to encryption key
+
+### Encryption on AWS
+
+* They key management system has a service to
+    * Generate keys to encrypt
+    * Encrypt the data using those keys and generate encrypted data
+    * encrypt the plane key to generate the key used for encyption
+    * store the encrypted data and encrypted key
+    * When we need to decrpt, decrypt the encrypted key and use that key to decrpyt the data
+* AWS KMS: Generates the Keys and encrypts plane key to encrypted key and Decrypts. Integrate with EBS, S3, RedShift, Kinesis, EMR, SQS, Workmail, transcoder
+* CloudHSM: KMS uses hardware not dedicated to just you, this may violate some security compliance requirments.For this we use CloudHSM. When we need dedicated Hardware. Not as integrated as KMS with AWS services.
+
+### Disaster Recovery Design Patterns
+
+* RTO: Recovery time objective- How long to recover
+* RPO: Recovery Point Object- How much data can be lost
+
+Popular Deisgn Patterns are
+
+* Backup and Restore
+    * Backup data to AWS second region (s3, snapshot) based on RPO
+    * Have AMIs in recovery regions
+    * Cloud Formation template standing by
+    * During Disaster
+        * Spin up instances from AMI using template
+        * REstore backup dat
+        * Modify DNS to point to new instances using Route53
+* Pilot Light   
+    * Cross region replication: RDS, DynamoDB, S3
+    * Have ready stopped instances
+    * Smaller DB instances
+    * During Disaster
+        * Start Instances
+        * Scale up DB, promote to primary
+        * Modify DNS or Use Route 53 to failover
+* Low Capacity Standby  
+    * Similar to Pilot Light but not have all instances running
+    * Some capacity running 24/7
+    * Complete replication of DB, multiple Masters, by using Aurora
+    * During Disaster:
+        * Scale Up/ Auto scale
+        * Route 53 failover to DNS
+* Multi-Site Active Active
+    * Two regions replicated. 
+    * During Disaster:
+        * Route 53 failover to DNS
+
+
+## Security
+
+The ability to protect informations, systems and assests while delivering business value through risk assessments and mitigation stratergies
+
+### Design Principles
+* IAM: 
+    * Implement a strong Identity foundation
+    * Principle of least privilege
+    * Root access disable
+    * AWS Organizations: Centrally Manage accounts
+* Enable Tracability:
+    * Cloud Trail to see API Calls
+* Apply Security at every Layer:
+    * Security Group
+    * NACL
+* Automate Security:
+    * Cloud Formation Template
+    * AMIs with proper security are in that templates, make sure no one can launch any other AMI
+* Protect data in transit and in rest
+    * Encryption
+* Prepare for Security Events:
+    * Lambda function tried to events that initate at any breaches
+
+### Key Services
+
+#### IAM
+
+* IAM
+* AWS Organizations: Centrally Manage accounts
+* MFA: Hardware of Virtual Multi Factor Authentication, Console and API
+* STS Temporary Security Credentials
+
+#### Detective Controls
+
+* AWS CloudTrail: API access Logs
+* AWS Config: Resource Inventory
+* AWS CloudWAtch: Logs Metric Filters
+* Guard Duty: 
+    * Intelligent Threat Detection
+    * Machine Learning based getting data from
+        * CloudTrail Events
+        * VPC Flow Logs
+        * DNS Logs
+        * Rules will be created in CloudWatch, which can trigger Lambda function, like blocking an IP address
+  
+#### Infrastructure Protection
+
+* VPC: Isolated Virutal Networks
+* Amazon Inspector: Vulnerability Detection
+* AWS Shield: DDOS Mitigation
+* AWS WAF: Application Firewall
+    * SQL injection
+    * Cross Site Scripting
+    * Bad Bots
+    * High Request Rates
+    * Large REquest Size
+    * Blacklist/ Whitelist IPs
+
+#### Data Protection
+
+* Amazon Macie
+    * ML based Data Classification
+    * Data stored in S3
+    * Risky or suspicious activity alerted
+        * Someone downloading data or security check for buckets
+    * Alerts
+        * High Risk Data Events
+        * Credentials in source code
+        * Uncrypted backups
+* Encryption:
+    * S3 object encryption
+    * EBS block encryption
+* KMS
+
+
+## Performance Efficiency
+
+The ability to use computing resources efficiently to meet system requirments and to maintain that efficiency as demand changes and technologies evolve
+
+### Design Pattern
+
+* Demorcatize advanced tech: Don't re-invent the wheel. If there is AWS service, just use it
+* Go Global in minutes: Use Cloud Front
+* Use Serverless architecture: Managed by AWS, less costly
+* Experiment more often
+* Mechanical sympathy: Understand AWS services
+
+### Key Services
+
+#### Selection
+
+* Compute: Auto Scaling
+* Storage: EBS, S3 for storing static content and serving from there
+* DB: DynamoDB, RDS
+* Network: VPC, Route 53, Direct Connect
+
+#### Monitoring
+
+* Metrics, Alarms and Notifications: CloudWAtch
+* Automate Actions: Lambda
+
+## Cost Optimization
+
+Ability to avoid or eliminate unneeded cost or suboptimal resources
+
+### Design Principles
+
+* Adopt a consumption--cloud--model instead of on premise model
+* Meansure overall efficiency using cloud watch
+* Stop spending money on data centers
+* analyze and attribute expenditure
+    * Who is running what, do this based on adding tags
+* Cost effective resources
+    * right instances and storage options
+* Matching supply and demand
+    * Auto Scaling
+* Expenditure awareness
+    * Cost allocation tags
+    * Cloud Watch alarms for budge
+* Optimizing over time
+    * Contiously evaluate
+    * Trusted Advisor
+
+
+# Labs
+## Simple Route 53 EC2 to S3 failover lab
+
+* Start EC2 instance, use following commands to setup Apache with a webserver
+
+```shell
+sudo su
+yum update -y
+yum install httpd service
+service httpd start
+chkconfig httpd on # to start the service after reboot
+cd /var/www/html
+vim index.html
+<html><h1>This is the main site</h1></html>
+```
+* go to route 53, create a hosted zone
+* create a health check
+* give the hosted zone and EC2 ip
+    * remember to change IP here when we change reboot server if it's not having elastic IP
+* keep health check threshold 1 so that there is no lag when the site fails and back up comes fast
+* create a record set, with no alias and give the ec2 ip address
+* create a s3bucket with hosted zone name (no period)
+* upload a index html file, give public access
+* make the statick website available, in the index give the index file name which you upload
+* go back to route 53 and create a new record set, failover--secondary, alias yes, give s3--may have to refresh the entire page if s3 not visible.
+* bring the ec2 down to see if the setup works. 
+    * When you bring ec2 up agian, the ip may change, make sure you changeg both the hosted zone and health check IP.
+
 
 ECS Lab Work from AWS Documentation
