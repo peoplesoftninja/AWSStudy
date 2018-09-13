@@ -58,6 +58,7 @@ meta-data displays instances meta data, AMI instance type etc
 GET xyz.html HTTP\1.1
 Host: journal.com
 ```
+
 ## Auto Scaling
 
 Has three parts
@@ -121,7 +122,7 @@ service httpd start
 
 To check your personal public IP go online and check on website what is my ip ipv4 or in cmd type
 
-`nslookup myip.opendns.com resolver1.opendns.com` look for non-authoriative IP
+`nslookup myip.opendns.com` `resolver1.opendns.com` look for non-authoriative IP
 
 # Transfering files
 
@@ -154,6 +155,19 @@ To transfer to/from windows
     * example. https://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html
 * S3 ACL--Granted for other AWS accounts, present at object and bucket level
     * Using object ACL we can share a file with public
+* CORS basic setup
+
+Allowing contents from bucket1 in bucket 2, this is setup in bucket2 cors to allow bucket1 file access
+```html
+<?xml version="1.0" encoding="UTF-8"?>
+<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+<CORSRule>
+    <AllowedOrigin>http://cfst-17-6b79369d3f6aac17fc601c9ac00b909-s3bucket1-6gxq45m57poh.s3-website-us-east-1.amazonaws.com</AllowedOrigin>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedHeader>Authorization</AllowedHeader>
+</CORSRule>
+</CORSConfiguration>
+```
 
 ## S3 Storage Classes
 * Use LifeCycle Policies to automate this, can't upload directly in glacier
@@ -259,7 +273,6 @@ Normally if you use a storage service you get charged by storage size. But S3 ch
 
 # Cloud Front
 
-
 * You have a static web page being hosted from S3
 * You can directly use the url to share the website given by s3, without using Route 53 or Cloud Front. The problem is the url is unreadable so you want easy to read url. To address this problem, you use route 53. The problem is you are hitting your s3 again and again and s3 is located at one place and users are all over the world, to address this problem you use cloudfront distribution.
 * You can combine the above two. In Cloud Front you tell the origin which is the S3 bucket and it will give you a domain name, which you can use to access S3. Or you can configure the Cloud Front to use an alternate DOmain Name(CNAME). Then in Route 53 create a new record set, and set an alias pointing to the Cloud Front. This way you can use the domain name you want.
@@ -328,7 +341,7 @@ When you create a Primary DB, you can create a Read Replica, which is asynchrono
     * Short Polling--More calls, so costlier
 * Mangaed by AWS, Highly Available
 * Msg can contain 256 KB, text format
-* Standard Queue and FIFO Queue
+* Standard Queue and First in First Out (FIFO) Queue
 
 # SWF - Simple Work Flow
 
@@ -441,6 +454,7 @@ status of log
     * Evaluates Compliance: Internal rule that all S3 data must be encrypted
     * Managed Rules, provided by AWS, which can be used
     * We can also create a custom rule, by creating a Lambda function for that rule
+
 ## Lab
 
 * Create a S3 bucket
@@ -523,7 +537,7 @@ A well architect framework has following traits
 
 ### Design Principles
 * Infrastructure/Operations as Code: Automate everything Eg: Auto Scaling
-* Annotate Documentation: Xode everything, which will serve as documentation
+* Annotate Documentation: Code everything, which will serve as documentation
 * Frequent, small, reversible changes--Monitor test and quick feedback. This way it is less risky.
 * Refine Operation procedures continiously
 * Anticipate failure: Assume whatever can fail, will fail. In place operations to correct when component fails. Like in Auto scaling we have a monitor setup to replace failed instances with healthy one
@@ -536,8 +550,8 @@ A well architect framework has following traits
 
 ### AWS DevOps Tools
 
-* CodeBuild: Build and test the application code before releasing
 * CodeCommit: Managed git repo, similar to git. When code commited to CodeCommit it can trigger CodeBuild
+* CodeBuild: Build and test the application code before releasing
 * CodeDeploy: Deploy code to Ec2 instances, can do rolling updates
 * CodePipeline: Can orchestrate all the above to give the CI/CD
 * CodeStar: Complete Project Management Solution, that includes things like Bug Tracking and CI
@@ -737,7 +751,7 @@ Ability to avoid or eliminate unneeded cost or suboptimal resources
 * Meansure overall efficiency using cloud watch
 * Stop spending money on data centers
 * analyze and attribute expenditure
-    * Who is running what, do this based on adding tags
+    * Who is running what, do this based on add ing tags
 * Cost effective resources
     * right instances and storage options
 * Matching supply and demand
