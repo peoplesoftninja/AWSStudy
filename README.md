@@ -1,3 +1,80 @@
+- [Security Group vs NACL](#security-group-vs-nacl)
+- [EC2 Components](#ec2-components)
+    - [Creating a Apache Webserver on EC2 Linux](#creating-a-apache-webserver-on-ec2-linux)
+    - [Troubleshooting](#troubleshooting)
+    - [Preparing an Instance for Custom AMI](#preparing-an-instance-for-custom-ami)
+- [user-data and meta-data](#user-data-and-meta-data)
+- [Elastic Load Balance and Auto Scaling](#elastic-load-balance-and-auto-scaling)
+    - [ELB](#elb)
+    - [Application ELB](#application-elb)
+    - [Auto Scaling](#auto-scaling)
+- [Bastion Host](#bastion-host)
+- [NAT Gateway](#nat-gateway)
+- [Lab excercise](#lab-excercise)
+- [Security NACL](#security-nacl)
+- [Transfering files](#transfering-files)
+- [S3](#s3)
+    - [S3 Componenets](#s3-componenets)
+    - [S3 Permissions](#s3-permissions)
+    - [S3 Storage Classes](#s3-storage-classes)
+    - [S3 Pricing](#s3-pricing)
+    - [Features](#features)
+- [Route 53](#route-53)
+    - [Hosted Zones](#hosted-zones)
+    - [Record Sets](#record-sets)
+    - [DNS Failover](#dns-failover)
+- [Steps to Host](#steps-to-host)
+- [Steps in Traffic routing: Simple Version](#steps-in-traffic-routing-simple-version)
+- [Cloud Front](#cloud-front)
+- [VPC Peering](#vpc-peering)
+- [Database](#database)
+    - [Neptune](#neptune)
+- [SNS--Simple Notification Service](#sns--simple-notification-service)
+- [SQS - Simple Queue Service](#sqs---simple-queue-service)
+- [SWF - Simple Work Flow](#swf---simple-work-flow)
+- [API Gateways](#api-gateways)
+- [Lambda Function](#lambda-function)
+- [Lambda - Excercise](#lambda---excercise)
+- [Deployment -- Cloud Formation](#deployment----cloud-formation)
+    - [Template](#template)
+- [Monitoring](#monitoring)
+    - [Cloud Watch](#cloud-watch)
+    - [Cloud Trail](#cloud-trail)
+    - [VPC Flow Logs](#vpc-flow-logs)
+    - [AWS Config](#aws-config)
+    - [Lab](#lab)
+- [ECS - Elastic Container Service](#ecs---elastic-container-service)
+- [EBS - Elastic Bean Stalk](#ebs---elastic-bean-stalk)
+- [Analytics](#analytics)
+    - [Kinesis](#kinesis)
+    - [Elastic Map Reduce (EMR)](#elastic-map-reduce-emr)
+- [AWS Well Architected Framework](#aws-well-architected-framework)
+    - [Operation: Best Practices and Key Services](#operation-best-practices-and-key-services)
+        - [Design Principles](#design-principles)
+        - [Key services](#key-services)
+        - [AWS DevOps Tools](#aws-devops-tools)
+    - [Reliability](#reliability)
+        - [Design Principles](#design-principles)
+        - [Key Services](#key-services)
+        - [Encryption on AWS](#encryption-on-aws)
+        - [Disaster Recovery Design Patterns](#disaster-recovery-design-patterns)
+    - [Security](#security)
+        - [Design Principles](#design-principles)
+        - [Key Services](#key-services)
+            - [IAM](#iam)
+            - [Detective Controls](#detective-controls)
+            - [Infrastructure Protection](#infrastructure-protection)
+            - [Data Protection](#data-protection)
+    - [Performance Efficiency](#performance-efficiency)
+        - [Design Pattern](#design-pattern)
+        - [Key Services](#key-services)
+            - [Selection](#selection)
+            - [Monitoring](#monitoring)
+    - [Cost Optimization](#cost-optimization)
+        - [Design Principles](#design-principles)
+- [Labs](#labs)
+    - [Simple Route 53 EC2 to S3 failover lab](#simple-route-53-ec2-to-s3-failover-lab)
+
 # Security Group vs NACL
 
 * Security Group is stateful where as NACL is not. That means there is no need for outbound traffic in Security Group, it will remember
@@ -28,8 +105,41 @@
         * Can be accessed by more than one EC2 instance
         * can be used as hybrid by mounting to on premise server when connected to AWS direct connect
         * The ec2 instances should have the default security group of the VPC added else EFS won't work
+        * First Create the EFS system, Make sure the AZ are the one in which instances are present
+        * security zone should have NFS port 2049 and source should be security group of the instances
+        * install nfs, `sudo yum install -y nfs-utils`
+        * create a directory `sudo mkdir efs`
+        * mount EFS to directory using nfs client `sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport fs-4ef3b605.efs.us-east-1.amazonaws.com:/ efs`
+* IP Addresses
+    * VPC - 10.0.0.0/16
+    * Subnet - 10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24
+* Key Store
+    * Mandatory to login in EC2. If lost you can't login
+    * To login without keystore, enable password login. You can follow the instructions available [here](https://aws.amazon.com/premiumsupport/knowledge-center/ec2-password-login/)
+
+## Creating a Apache Webserver on EC2 Linux
+
+```s
+$ sudo yum update -y
+$ sudo yum install httpd
+$ sudo service httpd start
+$ sudo chkconfig httpd on
+
+* Why is this better than using boot strap scripts, or using Ansible/Chef or other tools? Because they will have to run the scripts, download software, hence the process will be slower
+```
+## Troubleshooting
+
+* In Windows EC2 you may not be allowed to use IE, for this use following steps [url](https://www.vpsblocks.com.au/support/Knowledgebase/Article/View/211/8/internet-explorer-cant-be-opened-using-the-built-in-administrator-account)
+* To download use [this](http://www.visualwin.com/IE-Enhanced-Security-2008/)
 
 
+## Preparing an Instance for Custom AMI
+
+* If there is any file with sensitive information like keys first shred and then remove. 
+* For shred use `sudo shred filename` and then `rm filename`
+* This way even the file is recovered it is shredded
+* If aws configure was set run `aws configure` again and change values to `None`
+* Clear all history by `history -c` to clear current session and `history -w` to clear all sessions
 
 # user-data and meta-data
 
@@ -47,7 +157,8 @@ meta-data displays instances meta data, AMI instance type etc
 
 * ELB is for distributing traffic across instances and Auto Scaling is grouping of instances in such a way that the group increases the number of instances with the increase in traffic
 * ELB has its own DNS record set hence direct access. This can also be used internally for private subnets
-* You can apply SSL directly to ELB
+* You can apply SSL directly to ELB and make https enabled
+* ELB can only use public subnet and NOT private subnet. We get around this by adding a public subnet(even with no instances) in the same AZ which has a private subnet in which we are launching instances. Read more [here](https://aws.amazon.com/premiumsupport/knowledge-center/public-load-balancer-private-ec2/)
 
 ## Application ELB
 
@@ -72,6 +183,10 @@ Has three parts
         * SNS notification
 * Auto Scaling Policy
     * Auto scale increases/decreases instances based on *Cloud Watch* metrics
+* Auto Scaling Policy has two types
+    * Simple Policy
+    * Step Policy, this is used when you want 1 instance to go if > 70 and 2 to go up when between 70-90 and 3 if 90+, simple basically has no elif rule
+    * warm up time is added so that CPU utilization or other metric changes
 
 
 # Bastion Host
@@ -143,6 +258,7 @@ To transfer to/from windows
     * Main storage container.
     * Similar to folder/ website url. 
     * Name needs to be unique
+    * You can create folders in bucket, then when create rule just give the prefix name as 'Folder'
 * S3 Object
     * Individual file
     * 0 bits size to 5 TB
@@ -155,6 +271,7 @@ To transfer to/from windows
     * example. https://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html
 * S3 ACL--Granted for other AWS accounts, present at object and bucket level
     * Using object ACL we can share a file with public
+    * When we make a file public, we get a shared link. The bucket itself need not be public. 
 * CORS basic setup
 
 Allowing contents from bucket1 in bucket 2, this is setup in bucket2 cors to allow bucket1 file access
@@ -493,6 +610,14 @@ The Cloud Trail doesn't log at the same time, there is a lag, around 15-20 minut
     * Blue-Green 
         * Helps you run different version in different stages   
 * When creating a EBS application, make sure a VPC is present
+* Steps
+    * Create Volums
+    * Attatch to EC2 instance
+    * In EC2 instance first make a file system on a volume `sudo mkfs -t ext4 dev/xvdf`
+    * create a directory `mkdir /data`
+    * mount the volume to directly `mount /dev/xvdf /dat`
+    * Check `lsblk`
+    * read more [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-using-volumes.html)
 
 # Analytics
 
