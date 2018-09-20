@@ -8,11 +8,15 @@
     - [ELB](#elb)
     - [Application ELB](#application-elb)
     - [Auto Scaling](#auto-scaling)
-- [Bastion Host](#bastion-host)
-- [NAT Gateway](#nat-gateway)
-- [Lab excercise](#lab-excercise)
-- [Security NACL](#security-nacl)
-- [Transfering files](#transfering-files)
+- [Networking](#networking)
+    - [VPC Peering](#vpc-peering)
+    - [VPC endpoints](#vpc-endpoints)
+    - [Route table](#route-table)
+    - [Bastion Host](#bastion-host)
+    - [NAT Gateway](#nat-gateway)
+    - [Lab excercise](#lab-excercise)
+    - [Security NACL](#security-nacl)
+    - [Transfering files](#transfering-files)
 - [S3](#s3)
     - [S3 Componenets](#s3-componenets)
     - [S3 Permissions](#s3-permissions)
@@ -26,7 +30,6 @@
 - [Steps to Host](#steps-to-host)
 - [Steps in Traffic routing: Simple Version](#steps-in-traffic-routing-simple-version)
 - [Cloud Front](#cloud-front)
-- [VPC Peering](#vpc-peering)
 - [Database](#database)
     - [Neptune](#neptune)
 - [SNS--Simple Notification Service](#sns--simple-notification-service)
@@ -74,6 +77,7 @@
         - [Design Principles](#design-principles)
 - [Labs](#labs)
     - [Simple Route 53 EC2 to S3 failover lab](#simple-route-53-ec2-to-s3-failover-lab)
+    - [VPC PUBLIC PRIVATE SUBNET](#vpc-public-private-subnet)
 
 # Security Group vs NACL
 
@@ -94,9 +98,11 @@
 * Storage: Hard drive
     * EBS-Elastic Block Store--Network drive, persistent storage. 
         * Steps to mount as File System drive
-            * `lsblk`
-            * `sudo mke2fs /dev/<ebsname>`
-            * `sudo mount /dev/<ebsname> /mnt`
+            * Create EBS Volme and attach Volume to Instance
+            * `lsblk` # make sure volume listed
+            * `sudo mkfs -t ext4 /dev/xvdf`
+            * `mkdir newDirectory`
+            * `sudo mount /dev/<ebsname> newDirectory`
         * CAN NOT be accessed by more than one EC2 instance
     * Instance Store- ephemeral storage--temporary
     * EFS-Elastic File System -- 
@@ -188,17 +194,49 @@ Has three parts
     * Step Policy, this is used when you want 1 instance to go if > 70 and 2 to go up when between 70-90 and 3 if 90+, simple basically has no elif rule
     * warm up time is added so that CPU utilization or other metric changes
 
+# Networking
 
-# Bastion Host
+## VPC Peering
+
+* To ping server we need to have All ICMP- IPv4 type protocol ICMP(1) open. To ping it from anywhere use `0.0.0.0/0` and to ping from paritcular VPC use the ip pf that, if more than one vpc, use a top level ip block. For example, `10.0.0.0/13` covers from `10.1.0.0` to `10.7.255.255`
+* Create a VPC peering connection by giving a requestor VPC and acceptor VPC
+* After creating a peering connection, go to the acceptor VPC account, and click accept. Till then it will be pending
+* After creating just VPC peering we still won't be able to ping.We need one more step, add traffic routing to route table. 
+* Route needs to be added on both sides of the relationship. You give the other VPC IP as Destination and Peering connection ID as Target. 
+* Once VPC is established you can only ping private IP, not public IP, as for public IP you need to go outsider internet and we removed the open internal ping rule from NACL by limiting to only VPC
+    * To work around this, go to vpc peering connection
+    * Actions-->Edit DNS settings
+    * DNS Resolutions allow for both VPC
+    * This will work only for public DNS not Public IP 
+* We can connect private subnets as well, until and unless the route table has peering connection route
+* Three steps for VPC peering
+    * NACL, ICMP 1 open for VPC IP
+    * VPC peering connection established, accepted and working
+    * Route table VPCE source and Peering ID as destination in each subnet
+    * In Peering go to Action and Edit DNS Setting, enable.
+
+## VPC endpoints
+
+* This is used as a replacement for NAT Gateway. Because in NatGateway we are going outside internet as a public IP of Natgateway is being used. When we access sensitive data using EC2 instance it can be a security issue
+* Endpoint let us access outside VPC data like S3 and others without the need of NAT by keepign things completely private
+* First go to VPC, create End point, select the type of service (S3 etc) and selete the private route table, see permissions are what we want and select create. This Creates a end point and also add it to the appropriate route table for us to access what we want.
+
+## Route table
+
+* Each route in a table specifies a destination CIDR and a target **(for example, traffic destined for the external corporate network 172.16.0.0/12 is targeted for the virtual private gateway)**. We use the most specific route that matches the traffic to determine how to route the traffic
+
+
+## Bastion Host
 
 * This is EC2 instance in public subnet used to access instances in private subnet in the same VPC
 
-# NAT Gateway
+## NAT Gateway
 
 * Similar to Bastion but reversed, where the private instances use the gateway to download something from the internet
-* They should be part of the private subnet route table. This is how the connection is established
+* They are created in the Public Subnet
+* They should be part of the private subnet route table. This is how the connection is established. Destination of 0.0.0.0/0 is targeted to NAT Gateway address
 
-# Lab excercise
+## Lab excercise
 
 * Create VPC
 * Create IGW, attach to VPC
@@ -210,15 +248,16 @@ Has three parts
     * Add IGW to Route Table Public
     * Add Subnets as required
 * Create EC2 instance for Private Subnets. Add below script for weblogic server. the `-y` is to answer all questions as Yes.
-```shell
+```s
 #!/bin/bash
 yum update -y
 yum install -y httpd
 service httpd start
 ```
-* Explain why we can't log in
+* Verify that we can't log in
 * Create a Bastion Host, same EC2 but in Public Subnet
 * Once Bastion Host is created, SSH into it and from there SSH into the Ec2 instances in the Private Subnet.
+* Use the below steps to login in Bastion Host and from that into the private Instance
     * Open PuttyGen, Load the pem key and save without passphrase with the same name this will generate the ppk key, which we will use with putty
     * open putty add the Bastion host public IP, go to SSH-Auth, browse, give the location of the ppk key. Go back to session and Open
     * Show permission denied when ssh to webserver, because key is not added. 
@@ -228,18 +267,18 @@ service httpd start
     * open putty, in auth don't browse the key and select forwarding
     * once in bastion host, ssh to private server
     * *NOTE* If NACL is not ALL OPEN, the bastion host inbound ephemeral should also be open 
-* Create a NAT Gateway, this is in VPC Console not EC2
+* Create a NAT Gateway in Public Subnet, this is in VPC Console not EC2
     * NAT gateway use elastic IP
 * In the Private Route table which has the private subnet where the webservers are located, add the route to NAT gateway, 0.0.0.0/0
 * When Create ELB, we can't select private subnets. So we select the public subnet which are in the same zone as private subnet. Once we select that, it will show up the instances which are in the private subnet as well. 
 
-# Security NACL
+## Security NACL
 
 To check your personal public IP go online and check on website what is my ip ipv4 or in cmd type
 
 `nslookup myip.opendns.com` `resolver1.opendns.com` look for non-authoriative IP
 
-# Transfering files
+## Transfering files
 
 Transfer first to bastion host and from there to the private server.
 
@@ -400,26 +439,6 @@ Normally if you use a storage service you get charged by storage size. But S3 ch
 * Route 53 is used where a Record set with CNAME is created routing traffic for the domain to another domain which can be like routing meditations22.com to cdn.meditations22.com
 * Even if TTL for an object is 0, it's faster in Cloud Front as it replaces only if there is a change in header version, so if it's not it doesn't replace and serves the same object
 * You can restrict the access to Origin S3 in Cloud Front so that users don't have direct access to it.
-
-
-# VPC Peering
-
-* To ping server we need to have All ICMP- IPv4 type protocol ICMP(1) open. To ping it from anywhere use `0.0.0.0/0` and to ping from paritcular VPC use the ip pf that, if more than one vpc, use a top level ip block. For example, `10.0.0.0/13` covers from `10.1.0.0` to `10.7.255.255`
-* Create a VPC peering connection by giving a requestor VPC and acceptor VPC
-* After creating a peering connection, go to the acceptor VPC account, and click accept. Till then it will be pending
-* After creating just VPC peering we still won't be able to ping.We need one more step, add traffic routing to route table. 
-* Route needs to be added on both sides of the relationship. You give the other VPC IP as Destination and Peering connection ID as Target. 
-* Once VPC is established you can only ping personal IP, not public IP, as for public IP you need to go outsider internet and we removed the open internal ping rule from NACL by limiting to only VPC
-    * To work around this, go to vpc peering connection
-    * Actions-->Edit DNS settings
-    * DNS Resolutions allow for both VPC
-    * This will work only for public DNS not Public IP 
-* We can connect private subnets as well, until and unless the route table has peering connection route
-* Three steps for VPC peering
-    * NACL, ICMP 1 open for VPC IP
-    * VPC peering connection established, accepted and working
-    * Route table VPCE source and Peering ID as destination in each subnet
-    * In Peering go to Action and Edit DNS Setting, enable.
 
 # Database
 
@@ -919,3 +938,18 @@ vim index.html
 
 
 ECS Lab Work from AWS Documentation
+
+## VPC PUBLIC PRIVATE SUBNET
+You are tasked with setting up your organization’s first non-default VPC on Amazon Web Services (AWS). Because you are running a medium size application with multiple instances, and you want to implement high availability, your requirements are to create four subnets inside of this VPC. Two of the subnets should be public, and two of the subnets should be private. Resources in the private subnets should be able to communicate with resources in the public subnets (and vice versa). Instances in the private subnet should also have the ability to download updates from the Internet via a NAT Gateway service, but for cost reasons we do not want multi-AZ high availability for this Gateway. Instances launched in both public subnets should automatically receive public IP addresses when they are launched.
+
+The following CIDR block ranges can be used, but are not required:
+10.0.0.0/16
+10.0.1.0/24
+10.0.2.0/24
+10.0.3.0/24
+10.0.4.0/24
+
+https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Scenario2.html
+
+* For instances in private and public subnet to talk with each other in route table give the destination as VPC IP address block and Target as `local`
+* For a private instance to download files from internet create a Nat gateway in the public subnet and in the private subnet route table create a route with destination as `0.0.0.0/0` and Target as the Nat Gateway
