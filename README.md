@@ -31,13 +31,17 @@
 - [Steps in Traffic routing: Simple Version](#steps-in-traffic-routing-simple-version)
 - [Cloud Front](#cloud-front)
 - [Database](#database)
+    - [DynamoDB](#dynamodb)
     - [Neptune](#neptune)
 - [SNS--Simple Notification Service](#sns--simple-notification-service)
 - [SQS - Simple Queue Service](#sqs---simple-queue-service)
 - [SWF - Simple Work Flow](#swf---simple-work-flow)
-- [API Gateways](#api-gateways)
 - [Lambda Function](#lambda-function)
-- [Lambda - Excercise](#lambda---excercise)
+    - [Lambda - Excercise 1](#lambda---excercise-1)
+    - [Lambda-Excercise 2](#lambda-excercise-2)
+- [Lambda-Excercise 3](#lambda-excercise-3)
+- [API Gateways](#api-gateways)
+    - [API Gateway-Excercise 1](#api-gateway-excercise-1)
 - [Deployment -- Cloud Formation](#deployment----cloud-formation)
     - [Template](#template)
 - [Monitoring](#monitoring)
@@ -445,6 +449,10 @@ Normally if you use a storage service you get charged by storage size. But S3 ch
 RDS is fully managed.
 
 When you create a Primary DB, you can create a Read Replica, which is asynchronous copy of primary DB
+## DynamoDB
+
+* This is charged on Read Write Capacity too, per second based on provision. So if you provision your DB to read 5/5 read/write units per second they will charge you for that much and you can read that much. There is optiont to scale up as your demand increases and your cost will increase too. 
+* To understand the cost of this, I need to know the reads/writes per second for our current PRD system and its size limit. Need to ask our DBA
 
 ## Neptune
 * Full managed NoSQL Graph DB, different from DynamoDb as DynamoDb is Document Store/Key-value store. Neptune is similar to Neo4j and DynamoDB is similar to MongoDB
@@ -487,6 +495,45 @@ When you create a Primary DB, you can create a Read Replica, which is asynchrono
 * Task: What work needs to be done
 * Activites: A single step in the workflow
 
+# Lambda Function
+
+* You can create a Lambda Function using many platforms Python, NodeJS, Go
+
+## Lambda - Excercise 1
+
+* Set up Lambda with CloudWatch and SNS IAM roles
+* Create a Lambda Python program to access sns topic and send a message
+* Create a Cloud Watch rule to schedule sending message for x days or x minutes
+* in SNS topic, create a topic, add subscribers, use the TopicArn in the Lamda python code
+* Create a Lambda function with the code and add a IAM role with permission for SNS and Cloud WAtch. This way you don't have to create any policy at SNS and cloudWatch level
+* Start the Lambda and we will have a serverless function which is sending messages at a given frequency to a list of subscribers. 
+
+## Lambda-Excercise 2
+
+* Create a Lambda Function from AWS-CLI to access DynamoDB using S3
+* Make sure EC2 has a role for creating Lambda Function and also for accessing Dynamo DB and S3
+* zip the code `zip ./list.zip ./list.js`
+    * This is done because lambda accepts only zip, if not it gives the following erro `An error occurred (InvalidParameterValueException) when calling the CreateFunction operation: Could not unzip uploaded file. Please check your file, then try to upload again.`
+* Create a S3 bucket to upload the code ` aws s3api create-bucket --bucket lamdakhalifa`
+* Upload the code in S3 `aws s3 cp ./list.zip s3://lamdakhalifa/list.zip`
+* Make sure files got uploaded `aws s3 ls lamdakhalifa`
+* configure the region. You can leave access id and access key blank as there is a role attatched to ec2 `aws configure`
+* Copy the dynamoDBLambdaRole arn, this you can do by listing Ec2 roles `aws iam list-roles`
+* create the lambda function 
+```s
+aws lambda create-function --function-name list --runtime nodejs6.10 --role arn:aws:iam::007893070611:role/DynamoDBFullLambdaAccess --handler list.list --code S3Bucket=lamdakhalifa,S3Key=list.zip
+```
+* to see if the function is created do `aws lambda list-functions`
+* You can also verify from the console that a new function is created
+* Invoke a lambda function `aws lambda invoke --function-name list --payload '{}' listOutfile.txt`
+* another invoke example with payload `aws lambda invoke --function-name update --payload file://updateTest.json updateOutfile.txt`
+* Query form dynamodb table `aws dynamodb get-item --table-name PrometheonMusic --key '{"Artist":{"S":"Lauv"},"SongTitle":{"S":"I Like Me Better"}}'`
+
+# Lambda-Excercise 3
+
+* Create a Lambda Function from AWS CLI without s3 to access DynamoDB
+* Above steps will be same, the actual create-function will be `aws lambda create-function --function-name delete --runtime nodejs6.10 --role arn:aws:iam::842460227896:role/DynamoDBFullLambdaAccess --handler delete.delete --zip-file fileb://delete.zip`
+
 # API Gateways
 
 * Allows you to create and manage your own API for your application
@@ -498,19 +545,14 @@ When you create a Primary DB, you can create a Read Replica, which is asynchrono
 * API caching is done, so that API response to a duplicate API doesn't hit back end
 * Can be used with cloud Front to reduce latency and improve security
 
+## API Gateway-Excercise 1
 
-# Lambda Function
-
-* You can create a Lambda Function using many platforms Python, NodeJS, Go
-
-# Lambda - Excercise
-
-* Set up Lambda with CloudWatch and SNS IAM roles
-* Create a Lambda Python program to access sns topic and send a message
-* Create a Cloud Watch rule to schedule sending message for x days or x minutes
-* in SNS topic, create a topic, add subscribers, use the TopicArn in the Lamda python code
-* Create a Lambda function with the code and add a IAM role with permission for SNS and Cloud WAtch. This way you don't have to create any policy at SNS and cloudWatch level
-* Start the Lambda and we will have a serverless function which is sending messages at a given frequency to a list of subscribers. 
+* Go to API Gateway in console, create a new api Gateway
+* To create methods, first you need to create resource.
+* Give a resource name, enable API Gateway CORS, this will help in integration --*Read More*
+* In that resource, create methods. Select a method you want to create and click the tick mark. Select the integration type. If selecting lambda, keep all cehck and select a lambda function
+* Once API is created, deploy them, this will give a new URL to invoke
+* Use a tool to access the url, like postman
 
 # Deployment -- Cloud Formation
 
